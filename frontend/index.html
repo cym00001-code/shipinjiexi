@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>小红书视频解析 · 一键下载多清晰度原画</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%23ff2741'/><text x='50' y='66' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='800'>小</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          xhs: { 50: '#fff1f2', 100: '#ffe1e3', 500: '#ff2741', 600: '#e31b35', 700: '#bf1029' },
+        },
+        fontFamily: { sans: ['system-ui','-apple-system','PingFang SC','Microsoft YaHei','sans-serif'] },
+      }},
+    };
+  </script>
+  <style>
+    body { background: linear-gradient(180deg,#fff5f6 0%,#fff 60%); }
+    .glass { backdrop-filter: blur(14px); background: rgba(255,255,255,.78); }
+    .scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .scrollbar::-webkit-scrollbar-thumb { background: #fbb; border-radius: 99px; }
+    .truncate-2 {
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="text-gray-800">
+<div id="app" v-cloak class="min-h-screen">
+  <header class="sticky top-0 z-30 glass border-b border-rose-100">
+    <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-xhs-500 text-white grid place-items-center font-extrabold shadow-sm">小</div>
+      <div class="leading-tight">
+        <div class="font-bold text-lg">小红书视频解析</div>
+        <div class="text-xs text-gray-500">粘贴分享链接 · 自动解析 · 多清晰度原画下载</div>
+      </div>
+      <div class="ml-auto flex items-center gap-2 text-sm">
+        <button @click="showHistory=!showHistory" class="px-3 py-1.5 rounded-full bg-white border border-rose-200 hover:bg-rose-50 text-rose-600">
+          {{ showHistory ? '关闭历史' : `历史 (${history.length})` }}
+        </button>
+        <button @click="showSettings=!showSettings" class="px-3 py-1.5 rounded-full bg-white border border-rose-200 hover:bg-rose-50 text-rose-600">设置</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <!-- 输入卡 -->
+    <section class="bg-white rounded-3xl border border-rose-100 shadow-sm p-5 sm:p-6">
+      <label class="block text-sm font-medium text-gray-600 mb-2">小红书分享链接</label>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <textarea
+          v-model="urlInput"
+          @keydown.ctrl.enter="parse"
+          @keydown.meta.enter="parse"
+          rows="2"
+          placeholder="粘贴小红书 App 分享文本, 或直接粘贴 https://www.xiaohongshu.com/explore/... / https://xhslink.com/... 链接"
+          class="flex-1 px-4 py-3 rounded-2xl border border-rose-200 focus:border-xhs-500 focus:ring-2 focus:ring-rose-200 outline-none resize-none bg-rose-50/40"
+        ></textarea>
+        <button
+          @click="parse"
+          :disabled="loading || !urlInput.trim()"
+          class="sm:w-32 h-12 self-stretch sm:self-auto rounded-2xl bg-xhs-500 hover:bg-xhs-600 active:bg-xhs-700 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition"
+        >
+          <span v-if="!loading">解析</span>
+          <span v-else class="inline-flex items-center gap-1">
+            <svg class="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" opacity=".25"/><path d="M22 12a10 10 0 0 1-10 10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            解析中
+          </span>
+        </button>
+      </div>
+      <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+        <span>快捷键: Ctrl/Cmd + Enter</span>
+        <button class="text-rose-500 hover:underline" @click="pasteFromClipboard">从剪贴板粘贴</button>
+        <button class="text-rose-500 hover:underline" @click="urlInput=''">清空</button>
+      </div>
+      <transition name="fade">
+        <div v-if="error" class="mt-3 px-4 py-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+          {{ error }}
+        </div>
+      </transition>
+    </section>
+
+    <!-- 设置面板 -->
+    <transition name="fade">
+    <section v-if="showSettings" class="bg-white rounded-3xl border border-rose-100 shadow-sm p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">设置</h3>
+        <button @click="showSettings=false" class="text-gray-400 hover:text-rose-500">✕</button>
+      </div>
+      <label class="block text-sm text-gray-600 mb-1">小红书 Cookie (可选, 没有也能解析公开作品)</label>
+      <textarea v-model="cookie" rows="2" placeholder="登录 xiaohongshu.com 后, F12 → Application → Cookies, 复制 a1, web_session 等..." class="w-full px-3 py-2 rounded-xl border border-rose-200 text-sm font-mono"></textarea>
+      <div class="mt-3 flex items-center gap-3">
+        <label class="text-sm text-gray-600 inline-flex items-center gap-2">
+          <input type="checkbox" v-model="saveHistory" class="accent-xhs-500"> 自动保存解析历史
+        </label>
+        <button @click="saveSettings" class="ml-auto px-3 py-1.5 rounded-full bg-xhs-500 text-white text-sm hover:bg-xhs-600">保存</button>
+      </div>
+    </section>
+    </transition>
+
+    <!-- 历史 -->
+    <transition name="fade">
+    <section v-if="showHistory" class="bg-white rounded-3xl border border-rose-100 shadow-sm p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold">解析历史</h3>
+        <div class="flex items-center gap-2">
+          <button v-if="history.length" @click="clearHistory" class="text-xs text-gray-400 hover:text-rose-500">清空</button>
+          <button @click="showHistory=false" class="text-gray-400 hover:text-rose-500">✕</button>
+        </div>
+      </div>
+      <div v-if="!history.length" class="text-sm text-gray-400 py-6 text-center">还没有解析记录</div>
+      <ul class="grid sm:grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto scrollbar pr-1">
+        <li v-for="h in history" :key="h.id" class="group flex gap-3 p-2.5 rounded-2xl border border-rose-100 hover:border-xhs-500 hover:bg-rose-50/40 cursor-pointer" @click="loadHistory(h.id)">
+          <div class="w-20 h-20 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+            <img v-if="h.cover" :src="h.cover" referrerpolicy="no-referrer" loading="lazy" class="w-full h-full object-cover" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm font-medium truncate-2">{{ h.title || '(无标题)' }}</div>
+            <div class="text-xs text-gray-500 mt-1 truncate">{{ h.author }}</div>
+            <div class="text-[10px] text-gray-400 mt-1">{{ formatTime(h.created_at) }} · {{ h.type === 'video' ? '视频' : '图文' }}</div>
+          </div>
+          <button @click.stop="deleteHistory(h.id)" class="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-rose-500 transition">删除</button>
+        </li>
+      </ul>
+    </section>
+    </transition>
+
+    <!-- 结果展示 -->
+    <transition name="fade">
+    <section v-if="result" class="bg-white rounded-3xl border border-rose-100 shadow-sm overflow-hidden">
+      <div class="p-5 sm:p-6 grid sm:grid-cols-[200px_1fr] gap-5">
+        <div class="rounded-2xl overflow-hidden bg-gray-100 aspect-square sm:aspect-auto sm:h-[200px]">
+          <img v-if="result.cover" :src="result.cover" referrerpolicy="no-referrer" class="w-full h-full object-cover" />
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-600">
+              {{ result.type === 'video' ? '视频笔记' : '图文笔记' }}
+            </span>
+            <span v-if="result.duration" class="text-xs text-gray-500">{{ formatDuration(result.duration) }}</span>
+          </div>
+          <h2 class="text-lg font-semibold leading-snug">{{ result.title || '(无标题)' }}</h2>
+          <p class="text-sm text-gray-600 mt-1 truncate-2">{{ result.description }}</p>
+          <div class="flex items-center gap-2 mt-3">
+            <img v-if="result.avatar" :src="result.avatar" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full" />
+            <div class="text-sm font-medium">{{ result.author || '匿名作者' }}</div>
+          </div>
+          <div v-if="result.tags?.length" class="flex flex-wrap gap-1 mt-3">
+            <span v-for="t in result.tags" :key="t" class="text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-500"># {{ t }}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-3">
+            <span v-if="result.liked_count != null">❤ {{ formatCount(result.liked_count) }}</span>
+            <span v-if="result.collected_count != null">⭐ {{ formatCount(result.collected_count) }}</span>
+            <span v-if="result.comment_count != null">💬 {{ formatCount(result.comment_count) }}</span>
+            <span v-if="result.share_count != null">↗ {{ formatCount(result.share_count) }}</span>
+            <a :href="result.source_url" target="_blank" class="ml-auto text-rose-500 hover:underline">查看原作品 →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 视频清晰度 -->
+      <div v-if="result.type === 'video' && result.videos?.length" class="border-t border-rose-100 p-5 sm:p-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">下载视频 <span class="text-xs text-gray-400 font-normal">{{ result.videos.length }} 个清晰度</span></h3>
+          <div class="flex bg-rose-50 rounded-full p-0.5 text-xs">
+            <button v-for="c in availableCodecs" :key="c" @click="codec=c"
+                    :class="codec===c ? 'bg-white text-xhs-600 shadow-sm' : 'text-gray-500'"
+                    class="px-3 py-1 rounded-full font-medium uppercase transition">
+              {{ c }}
+            </button>
+          </div>
+        </div>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div v-for="(v, i) in filteredVideos" :key="i"
+               class="border border-rose-100 hover:border-xhs-500 transition rounded-2xl p-3 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 grid place-items-center font-bold text-xs">{{ v.quality }}</div>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium">{{ v.width }} × {{ v.height }} <span class="text-xs text-gray-400 uppercase">{{ v.codec }}</span></div>
+              <div class="text-xs text-gray-500">
+                <span v-if="v.fps">{{ v.fps }} fps · </span>
+                <span v-if="v.bitrate">{{ formatBitrate(v.bitrate) }} · </span>
+                <span v-if="v.size">{{ formatSize(v.size) }}</span>
+              </div>
+            </div>
+            <button @click="downloadVideo(v)" class="px-3 py-1.5 text-sm rounded-full bg-xhs-500 hover:bg-xhs-600 text-white">下载</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图集 -->
+      <div v-if="result.type !== 'video' && result.images?.length" class="border-t border-rose-100 p-5 sm:p-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">图集 <span class="text-xs text-gray-400 font-normal">{{ result.images.length }} 张</span></h3>
+          <button @click="downloadAllImages" class="px-3 py-1.5 text-sm rounded-full bg-xhs-500 hover:bg-xhs-600 text-white">打包下载 ZIP</button>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div v-for="(img, i) in result.images" :key="i" class="group relative rounded-2xl overflow-hidden bg-gray-100">
+            <img :src="img.url" referrerpolicy="no-referrer" loading="lazy" class="w-full aspect-square object-cover" />
+            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-end p-2 gap-1">
+              <button @click="downloadImage(img, i+1)" class="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs rounded-full bg-white/90 text-rose-600 font-medium">下载</button>
+              <button v-if="img.live_video_url" @click="downloadLive(img, i+1)" class="opacity-0 group-hover:opacity-100 px-2 py-1 text-xs rounded-full bg-xhs-500 text-white font-medium">实况MP4</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    </transition>
+
+    <footer class="text-center text-xs text-gray-400 pt-6 pb-10">
+      仅用于学习和个人备份, 请勿用于商业用途. 内容版权归原作者所有.
+    </footer>
+  </main>
+</div>
+
+<script>
+const { createApp, ref, computed, onMounted, watch } = Vue;
+
+createApp({
+  setup() {
+    const urlInput = ref('');
+    const cookie = ref(localStorage.getItem('xhs_cookie') || '');
+    const saveHistory = ref(localStorage.getItem('xhs_save_history') !== '0');
+    const loading = ref(false);
+    const error = ref('');
+    const result = ref(null);
+    const codec = ref('h264');
+    const showHistory = ref(false);
+    const showSettings = ref(false);
+    const history = ref([]);
+
+    const availableCodecs = computed(() => {
+      if (!result.value?.videos) return [];
+      const set = new Set(result.value.videos.map(v => v.codec));
+      return ['h264','h265','av1'].filter(c => set.has(c));
+    });
+
+    const filteredVideos = computed(() => {
+      if (!result.value?.videos) return [];
+      return result.value.videos.filter(v => v.codec === codec.value);
+    });
+
+    async function parse() {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      loading.value = true;
+      error.value = '';
+      result.value = null;
+      try {
+        const r = await fetch('/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, cookie: cookie.value, save_history: saveHistory.value }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.detail || '解析失败');
+        result.value = data;
+        const codecs = new Set((data.videos || []).map(v => v.codec));
+        if (codecs.size && !codecs.has(codec.value)) codec.value = [...codecs][0];
+        if (saveHistory.value) loadHistoryList();
+      } catch (e) {
+        error.value = e.message || String(e);
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    async function pasteFromClipboard() {
+      try {
+        urlInput.value = await navigator.clipboard.readText();
+      } catch {
+        error.value = '无法读取剪贴板, 请手动粘贴';
+      }
+    }
+
+    function downloadVideo(v) {
+      const name = `${safeName(result.value.title || result.value.note_id)}_${v.quality}_${v.codec}.mp4`;
+      triggerDownload(v.master_url, name);
+    }
+    function downloadImage(img, idx) {
+      const name = `${safeName(result.value.title || result.value.note_id)}_${idx}.jpg`;
+      triggerDownload(img.url, name);
+    }
+    function downloadLive(img, idx) {
+      const name = `${safeName(result.value.title || result.value.note_id)}_${idx}_live.mp4`;
+      triggerDownload(img.live_video_url, name);
+    }
+    async function downloadAllImages() {
+      const urls = result.value.images.map(i => i.url);
+      const filename = safeName(result.value.title || result.value.note_id);
+      const r = await fetch('/api/zip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls, filename }),
+      });
+      const blob = await r.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename + '.zip';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function triggerDownload(url, filename) {
+      const proxy = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+      const a = document.createElement('a');
+      a.href = proxy;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    async function loadHistoryList() {
+      try {
+        const r = await fetch('/api/history');
+        const data = await r.json();
+        history.value = data.items || [];
+      } catch {}
+    }
+    async function loadHistory(id) {
+      const r = await fetch(`/api/history/${id}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      result.value = data;
+      showHistory.value = false;
+      const codecs = new Set((data.videos || []).map(v => v.codec));
+      if (codecs.size && !codecs.has(codec.value)) codec.value = [...codecs][0];
+    }
+    async function deleteHistory(id) {
+      await fetch(`/api/history/${id}`, { method: 'DELETE' });
+      loadHistoryList();
+    }
+    async function clearHistory() {
+      if (!confirm('确定清空全部历史?')) return;
+      await fetch('/api/history', { method: 'DELETE' });
+      loadHistoryList();
+    }
+    function saveSettings() {
+      localStorage.setItem('xhs_cookie', cookie.value);
+      localStorage.setItem('xhs_save_history', saveHistory.value ? '1' : '0');
+      showSettings.value = false;
+    }
+
+    function safeName(s) {
+      return (s || 'xhs').replace(/[\\/:*?"<>|\r\n\t]+/g, '_').slice(0, 60).trim() || 'xhs';
+    }
+    function formatDuration(sec) {
+      sec = Math.floor(sec); const m = Math.floor(sec/60), s = sec%60;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+    function formatBitrate(bps) {
+      if (bps > 1e6) return (bps/1e6).toFixed(1) + ' Mbps';
+      if (bps > 1e3) return (bps/1e3).toFixed(0) + ' Kbps';
+      return bps + ' bps';
+    }
+    function formatSize(b) {
+      if (b > 1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+      if (b > 1024) return (b/1024).toFixed(0) + ' KB';
+      return b + ' B';
+    }
+    function formatCount(n) {
+      if (n >= 10000) return (n/10000).toFixed(1) + '万';
+      return n;
+    }
+    function formatTime(ts) {
+      const d = new Date(ts * 1000);
+      return d.toLocaleString('zh-CN', { hour12: false });
+    }
+
+    onMounted(() => { loadHistoryList(); });
+
+    return {
+      urlInput, cookie, saveHistory, loading, error, result,
+      codec, availableCodecs, filteredVideos,
+      showHistory, showSettings, history,
+      parse, pasteFromClipboard,
+      downloadVideo, downloadImage, downloadLive, downloadAllImages,
+      loadHistory, deleteHistory, clearHistory, saveSettings,
+      formatDuration, formatBitrate, formatSize, formatCount, formatTime,
+    };
+  }
+}).mount('#app');
+</script>
+
+<style>
+  .fade-enter-active, .fade-leave-active { transition: opacity .25s ease, transform .25s ease; }
+  .fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(4px); }
+</style>
+</body>
+</html>
