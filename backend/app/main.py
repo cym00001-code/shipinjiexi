@@ -18,6 +18,7 @@ from pydantic import BaseModel
 from . import history
 from .config import DEFAULT_UA, FRONTEND_DIR, REQUEST_TIMEOUT
 from .parser import XhsParseError, XhsParser
+from .wx_channels import WxChannelsParseError, WxChannelsParser, decrypt_wx_chunk
 
 
 @asynccontextmanager
@@ -26,7 +27,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="小红书视频解析", lifespan=lifespan)
+app = FastAPI(title="小红书/视频号解析", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,13 +45,17 @@ class ParseRequest(BaseModel):
 
 @app.post("/api/parse")
 async def api_parse(req: ParseRequest):
-    parser = XhsParser(cookie=(req.cookie or "").strip())
     try:
-        note = await parser.parse(req.url)
+        if WxChannelsParser.looks_like(req.url):
+            note = await WxChannelsParser().parse_text(req.url, cookie=(req.cookie or "").strip())
+        else:
+            note = await XhsParser(cookie=(req.cookie or "").strip()).parse(req.url)
     except XhsParseError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    except WxChannelsParseError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"请求小红书失败: {exc}")
+        raise HTTPException(status_code=502, detail=f"请求平台失败: {exc}")
 
     payload = note.to_dict()
     if req.save_history:
@@ -100,6 +105,7 @@ def _safe_filename(name: str, fallback: str = "xhs") -> str:
 async def api_download(
     url: str = Query(..., description="远端 CDN 直链"),
     filename: Optional[str] = Query(None, description="保存文件名 (含扩展名)"),
+    platform: Optional[str] = Query(None, description="平台标识"),
 ):
     """流式代理下载. 解决 CDN Referer 防盗链 + 浏览器直接保存."""
     if not url.startswith("http"):
@@ -118,7 +124,7 @@ async def api_download(
 
     headers = {
         "User-Agent": DEFAULT_UA,
-        "Referer": "https://www.xiaohongshu.com/",
+        "Referer": _referer_for(url, platform),
     }
     client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT, follow_redirects=True)
 
@@ -152,6 +158,59 @@ async def api_download(
     if "Content-Length" in upstream.headers:
         resp_headers["Content-Length"] = upstream.headers["Content-Length"]
     return StreamingResponse(streamer(), media_type=content_type, headers=resp_headers)
+
+
+@app.get("/api/wx-download")
+async def api_wx_download(
+    url: str = Query(..., description="视频号 CDN 直链"),
+    decode_key: str = Query(..., description="视频号 decodeKey"),
+    filename: Optional[str] = Query(None, description="保存文件名"),
+):
+    """代理下载视频号加密视频, 对前 128KB 做 ISAAC64 XOR 解密."""
+    if not url.startswith("http"):
+        raise HTTPException(400, "url 不合法")
+    if not decode_key.isdigit():
+        raise HTTPException(400, "decode_key 不合法")
+
+    name = _safe_filename(filename or "wx_channels.mp4", fallback="wx_channels.mp4")
+    headers = {
+        "User-Agent": DEFAULT_UA,
+        "Referer": "https://channels.weixin.qq.com/",
+    }
+    client = httpx.AsyncClient(timeout=REQUEST_TIMEOUT, follow_redirects=True)
+    try:
+        upstream = await client.send(
+            client.build_request("GET", url, headers=headers),
+            stream=True,
+        )
+    except httpx.HTTPError as exc:
+        await client.aclose()
+        raise HTTPException(502, f"下载失败: {exc}")
+
+    if upstream.status_code >= 400:
+        body = await upstream.aread()
+        await upstream.aclose()
+        await client.aclose()
+        raise HTTPException(upstream.status_code, body[:200].decode("utf-8", "ignore"))
+
+    async def streamer():
+        offset = 0
+        try:
+            async for chunk in upstream.aiter_bytes(chunk_size=64 * 1024):
+                data = decrypt_wx_chunk(chunk, decode_key, offset=offset)
+                offset += len(chunk)
+                yield data
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    quoted = quote(name)
+    resp_headers = {
+        "Content-Disposition": f"attachment; filename=\"{quoted}\"; filename*=UTF-8''{quoted}",
+    }
+    if "Content-Length" in upstream.headers:
+        resp_headers["Content-Length"] = upstream.headers["Content-Length"]
+    return StreamingResponse(streamer(), media_type="video/mp4", headers=resp_headers)
 
 
 class ZipRequest(BaseModel):
@@ -192,6 +251,13 @@ async def api_zip(req: ZipRequest):
             "Content-Disposition": f"attachment; filename=\"{quoted}\"; filename*=UTF-8''{quoted}",
         },
     )
+
+
+def _referer_for(url: str, platform: Optional[str] = None) -> str:
+    value = (platform or "").lower()
+    if value == "wx_channels" or "finder" in url or "wxapp.tc.qq.com" in url or "weixin.qq.com" in url:
+        return "https://channels.weixin.qq.com/"
+    return "https://www.xiaohongshu.com/"
 
 
 @app.get("/api/health")

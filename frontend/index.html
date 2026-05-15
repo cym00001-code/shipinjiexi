@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>小红书视频解析 · 一键下载多清晰度原画</title>
+  <title>小红书/视频号解析 · 一键下载多清晰度原画</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='42' fill='%23ff2741'/><text x='50' y='66' font-size='52' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='800'>小</text></svg>" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
@@ -27,6 +27,75 @@
       overflow: hidden; text-overflow: ellipsis;
     }
     [v-cloak] { display: none; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; color: #1f2937; }
+    header { position: sticky; top: 0; z-index: 30; border-bottom: 1px solid #ffe1e3; }
+    header > div, main { width: min(100% - 32px, 1024px); margin: 0 auto; }
+    header > div { min-height: 68px; display: flex; align-items: center; gap: 12px; }
+    header .w-9 { width: 36px; height: 36px; border-radius: 999px; background: #ff2741; color: white; display: grid; place-items: center; font-weight: 800; flex: 0 0 auto; }
+    header .ml-auto { margin-left: auto; display: flex; gap: 8px; }
+    main { padding: 24px 0 40px; }
+    main > section { margin-bottom: 24px; background: white; border: 1px solid #ffe1e3; border-radius: 24px; box-shadow: 0 1px 4px rgba(244, 63, 94, .08); }
+    main > section:first-child { padding: 20px; }
+    label { display: block; margin-bottom: 8px; color: #4b5563; font-size: 14px; font-weight: 600; }
+    textarea { width: 100%; border: 1px solid #fecdd3; border-radius: 16px; padding: 12px 16px; font: inherit; background: rgba(255, 241, 242, .45); outline: none; }
+    textarea:focus { border-color: #ff2741; box-shadow: 0 0 0 3px rgba(255, 39, 65, .12); }
+    button { border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button[class*="bg-xhs-500"], button[class*="bg-xhs"] { background: #ff2741; color: #fff; font-weight: 700; }
+    button[class*="border-rose"] { border: 1px solid #fecdd3; background: white; color: #e31b35; }
+    img { max-width: 100%; display: block; }
+    .rounded-3xl { border-radius: 24px; }
+    .rounded-2xl { border-radius: 16px; }
+    .text-rose-500, .text-rose-600 { color: #e31b35; }
+    .bg-rose-100 { background: #ffe1e3; }
+    .bg-xhs-500 { background: #ff2741; }
+    .text-white { color: white; }
+    .grid { display: grid; }
+    .flex { display: flex; }
+    .gap-2 { gap: 8px; }
+    .gap-3 { gap: 12px; }
+    .gap-5 { gap: 20px; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .ml-auto { margin-left: auto; }
+    .p-5 { padding: 20px; }
+    .px-4 { padding-left: 16px; padding-right: 16px; }
+    .py-3 { padding-top: 12px; padding-bottom: 12px; }
+    .mb-2 { margin-bottom: 8px; }
+    .mb-3 { margin-bottom: 12px; }
+    .mt-1 { margin-top: 4px; }
+    .mt-2 { margin-top: 8px; }
+    .mt-3 { margin-top: 12px; }
+    .text-xs { font-size: 12px; }
+    .text-sm { font-size: 14px; }
+    .text-lg { font-size: 18px; }
+    .font-bold, .font-semibold { font-weight: 700; }
+    .overflow-hidden { overflow: hidden; }
+    .min-w-0 { min-width: 0; }
+    .w-10 { width: 40px; }
+    .h-10 { height: 40px; }
+    .aspect-square { aspect-ratio: 1; }
+    @media (min-width: 640px) {
+      main > section:first-child > div:first-of-type { display: flex; gap: 8px; }
+      main > section:first-child textarea { flex: 1; }
+      main > section:first-child button[class*="sm:w-32"] { width: 128px; align-self: flex-start; height: 48px; }
+      .sm\:grid-cols-\[200px_1fr\] { grid-template-columns: 200px 1fr; }
+      .sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sm\:h-\[200px\] { height: 200px; }
+    }
+    @media (max-width: 640px) {
+      header > div, main { width: min(100% - 28px, 1024px); }
+      header > div { min-height: 84px; align-items: flex-start; padding-top: 14px; }
+      header .text-lg { font-size: 17px; }
+      header .text-xs { max-width: 180px; line-height: 1.35; }
+      header .ml-auto { gap: 6px; }
+      header button { width: 50px; min-height: 44px; padding: 6px 8px; white-space: normal; line-height: 1.15; }
+      main { padding-top: 24px; }
+      main > section:first-child { padding: 18px; }
+      main > section:first-child button[class*="sm:w-32"] { width: 100%; margin-top: 8px; height: 48px; border-radius: 16px; }
+      textarea { min-height: 110px; }
+    }
   </style>
 </head>
 <body class="text-gray-800">
@@ -35,8 +104,8 @@
     <div class="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
       <div class="w-9 h-9 rounded-full bg-xhs-500 text-white grid place-items-center font-extrabold shadow-sm">小</div>
       <div class="leading-tight">
-        <div class="font-bold text-lg">小红书视频解析</div>
-        <div class="text-xs text-gray-500">粘贴分享链接 · 自动解析 · 多清晰度原画下载</div>
+        <div class="font-bold text-lg">小红书/视频号解析</div>
+        <div class="text-xs text-gray-500">粘贴内容链接或视频号详情数据 · 自动解析 · 原画下载</div>
       </div>
       <div class="ml-auto flex items-center gap-2 text-sm">
         <button @click="showHistory=!showHistory" class="px-3 py-1.5 rounded-full bg-white border border-rose-200 hover:bg-rose-50 text-rose-600">
@@ -50,15 +119,15 @@
   <main class="max-w-5xl mx-auto px-4 py-6 space-y-6">
     <!-- 输入卡 -->
     <section class="bg-white rounded-3xl border border-rose-100 shadow-sm p-5 sm:p-6">
-      <label class="block text-sm font-medium text-gray-600 mb-2">小红书分享链接</label>
+      <label class="block text-sm font-medium text-gray-600 mb-2">内容链接 / 视频号详情数据</label>
       <div class="flex flex-col sm:flex-row gap-2">
         <textarea
           v-model="urlInput"
           @keydown.ctrl.enter="parse"
           @keydown.meta.enter="parse"
-          rows="2"
-          placeholder="粘贴小红书 App 分享文本, 或直接粘贴 https://www.xiaohongshu.com/explore/... / https://xhslink.com/... 链接"
-          class="flex-1 px-4 py-3 rounded-2xl border border-rose-200 focus:border-xhs-500 focus:ring-2 focus:ring-rose-200 outline-none resize-none bg-rose-50/40"
+          rows="3"
+          placeholder="粘贴小红书分享文本；或粘贴视频号详情 JSON、下载命令、媒体链接 + decodeKey"
+          class="flex-1 min-h-[96px] px-4 py-3 rounded-2xl border border-rose-200 focus:border-xhs-500 focus:ring-2 focus:ring-rose-200 outline-none resize-y bg-rose-50/40"
         ></textarea>
         <button
           @click="parse"
@@ -91,8 +160,8 @@
         <h3 class="font-semibold">设置</h3>
         <button @click="showSettings=false" class="text-gray-400 hover:text-rose-500">✕</button>
       </div>
-      <label class="block text-sm text-gray-600 mb-1">小红书 Cookie (可选, 没有也能解析公开作品)</label>
-      <textarea v-model="cookie" rows="2" placeholder="登录 xiaohongshu.com 后, F12 → Application → Cookies, 复制 a1, web_session 等..." class="w-full px-3 py-2 rounded-xl border border-rose-200 text-sm font-mono"></textarea>
+      <label class="block text-sm text-gray-600 mb-1">平台 Cookie (可选, 主要用于小红书公开作品解析增强)</label>
+      <textarea v-model="cookie" rows="2" placeholder="小红书可填 a1, web_session 等 Cookie；视频号第一版请粘贴含 urlToken / decodeKey 的详情数据" class="w-full px-3 py-2 rounded-xl border border-rose-200 text-sm font-mono"></textarea>
       <div class="mt-3 flex items-center gap-3">
         <label class="text-sm text-gray-600 inline-flex items-center gap-2">
           <input type="checkbox" v-model="saveHistory" class="accent-xhs-500"> 自动保存解析历史
@@ -121,7 +190,7 @@
           <div class="flex-1 min-w-0">
             <div class="text-sm font-medium truncate-2">{{ h.title || '(无标题)' }}</div>
             <div class="text-xs text-gray-500 mt-1 truncate">{{ h.author }}</div>
-            <div class="text-[10px] text-gray-400 mt-1">{{ formatTime(h.created_at) }} · {{ h.type === 'video' ? '视频' : '图文' }}</div>
+            <div class="text-[10px] text-gray-400 mt-1">{{ formatTime(h.created_at) }} · {{ platformName(h.platform) }} · {{ h.type === 'video' ? '视频' : '图文' }}</div>
           </div>
           <button @click.stop="deleteHistory(h.id)" class="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-rose-500 transition">删除</button>
         </li>
@@ -139,7 +208,7 @@
         <div class="min-w-0">
           <div class="flex items-center gap-2 mb-2">
             <span class="px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-600">
-              {{ result.type === 'video' ? '视频笔记' : '图文笔记' }}
+              {{ platformName(result.platform) }} · {{ result.type === 'video' ? '视频' : '图文' }}
             </span>
             <span v-if="result.duration" class="text-xs text-gray-500">{{ formatDuration(result.duration) }}</span>
           </div>
@@ -152,12 +221,15 @@
           <div v-if="result.tags?.length" class="flex flex-wrap gap-1 mt-3">
             <span v-for="t in result.tags" :key="t" class="text-xs px-2 py-0.5 rounded-full bg-rose-50 text-rose-500"># {{ t }}</span>
           </div>
+          <div v-if="result.message" class="mt-3 px-3 py-2 rounded-xl bg-rose-50 border border-rose-100 text-sm text-rose-700">
+            {{ result.message }}
+          </div>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 mt-3">
             <span v-if="result.liked_count != null">❤ {{ formatCount(result.liked_count) }}</span>
             <span v-if="result.collected_count != null">⭐ {{ formatCount(result.collected_count) }}</span>
             <span v-if="result.comment_count != null">💬 {{ formatCount(result.comment_count) }}</span>
             <span v-if="result.share_count != null">↗ {{ formatCount(result.share_count) }}</span>
-            <a :href="result.source_url" target="_blank" class="ml-auto text-rose-500 hover:underline">查看原作品 →</a>
+            <a v-if="result.source_url" :href="result.source_url" target="_blank" class="ml-auto text-rose-500 hover:underline">查看原作品 →</a>
           </div>
         </div>
       </div>
@@ -165,7 +237,7 @@
       <!-- 视频清晰度 -->
       <div v-if="result.type === 'video' && result.videos?.length" class="border-t border-rose-100 p-5 sm:p-6">
         <div class="flex items-center justify-between mb-3">
-          <h3 class="font-semibold">下载视频 <span class="text-xs text-gray-400 font-normal">{{ result.videos.length }} 个清晰度</span></h3>
+          <h3 class="font-semibold">下载视频 <span class="text-xs text-gray-400 font-normal">{{ result.videos.length }} 个规格</span></h3>
           <div class="flex bg-rose-50 rounded-full p-0.5 text-xs">
             <button v-for="c in availableCodecs" :key="c" @click="codec=c"
                     :class="codec===c ? 'bg-white text-xhs-600 shadow-sm' : 'text-gray-500'"
@@ -179,16 +251,25 @@
                class="border border-rose-100 hover:border-xhs-500 transition rounded-2xl p-3 flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 grid place-items-center font-bold text-xs">{{ v.quality }}</div>
             <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium">{{ v.width }} × {{ v.height }} <span class="text-xs text-gray-400 uppercase">{{ v.codec }}</span></div>
+              <div class="text-sm font-medium">{{ displayResolution(v) }} <span class="text-xs text-gray-400 uppercase">{{ v.codec }} · {{ v.format || 'mp4' }}</span></div>
               <div class="text-xs text-gray-500">
                 <span v-if="v.fps">{{ v.fps }} fps · </span>
                 <span v-if="v.bitrate">{{ formatBitrate(v.bitrate) }} · </span>
+                <span v-if="v.quality_type">{{ v.quality_type }} · </span>
+                <span v-if="v.audio_codec">{{ v.audio_codec }} 音频 · </span>
+                <span v-if="v.audio_bitrate">{{ formatBitrate(v.audio_bitrate) }} 音频 · </span>
+                <span v-if="v.audio_channels">{{ v.audio_channels }} 声道 · </span>
                 <span v-if="v.size">{{ formatSize(v.size) }}</span>
+                <span v-if="v.decode_key"> · 自动解密</span>
               </div>
             </div>
             <button @click="downloadVideo(v)" class="px-3 py-1.5 text-sm rounded-full bg-xhs-500 hover:bg-xhs-600 text-white">下载</button>
           </div>
         </div>
+      </div>
+
+      <div v-if="result.type === 'video' && !result.videos?.length" class="border-t border-rose-100 p-5 sm:p-6 text-sm text-gray-500">
+        暂时没有拿到可下载视频流。视频号复制链接能识别作品信息，但高清直链和 decodeKey 通常需要微信 PC 登录环境或本地采集工具提供。
       </div>
 
       <!-- 图集 -->
@@ -235,12 +316,15 @@ createApp({
     const availableCodecs = computed(() => {
       if (!result.value?.videos) return [];
       const set = new Set(result.value.videos.map(v => v.codec));
-      return ['h264','h265','av1'].filter(c => set.has(c));
+      const known = ['h264','h265','av1'].filter(c => set.has(c));
+      const extra = [...set].filter(c => c && !known.includes(c));
+      return [...known, ...extra];
     });
 
     const filteredVideos = computed(() => {
       if (!result.value?.videos) return [];
-      return result.value.videos.filter(v => v.codec === codec.value);
+      const list = result.value.videos.filter(v => v.codec === codec.value);
+      return list.length ? list : result.value.videos;
     });
 
     async function parse() {
@@ -278,7 +362,11 @@ createApp({
 
     function downloadVideo(v) {
       const name = `${safeName(result.value.title || result.value.note_id)}_${v.quality}_${v.codec}.mp4`;
-      triggerDownload(v.master_url, name);
+      if (v.proxy_url) {
+        triggerDirectDownload(v.proxy_url, name);
+      } else {
+        triggerDownload(v.master_url, name, result.value.platform);
+      }
     }
     function downloadImage(img, idx) {
       const name = `${safeName(result.value.title || result.value.note_id)}_${idx}.jpg`;
@@ -304,10 +392,13 @@ createApp({
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     }
 
-    function triggerDownload(url, filename) {
-      const proxy = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    function triggerDownload(url, filename, platform='xhs') {
+      const proxy = `/api/download?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}&platform=${encodeURIComponent(platform || '')}`;
+      triggerDirectDownload(proxy, filename);
+    }
+    function triggerDirectDownload(url, filename) {
       const a = document.createElement('a');
-      a.href = proxy;
+      a.href = url;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -370,6 +461,13 @@ createApp({
       const d = new Date(ts * 1000);
       return d.toLocaleString('zh-CN', { hour12: false });
     }
+    function platformName(platform) {
+      return platform === 'wx_channels' ? '视频号' : '小红书';
+    }
+    function displayResolution(v) {
+      if (v.width && v.height) return `${v.width} × ${v.height}`;
+      return v.quality || '原画';
+    }
 
     onMounted(() => { loadHistoryList(); });
 
@@ -381,6 +479,7 @@ createApp({
       downloadVideo, downloadImage, downloadLive, downloadAllImages,
       loadHistory, deleteHistory, clearHistory, saveSettings,
       formatDuration, formatBitrate, formatSize, formatCount, formatTime,
+      platformName, displayResolution,
     };
   }
 }).mount('#app');

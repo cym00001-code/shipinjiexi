@@ -30,14 +30,23 @@ URL_IN_TEXT_RE = re.compile(r"https?://[^\s一-龥]+")
 class VideoStream:
     quality: str            # 友好名: 1080P / 720P 等
     codec: str              # h264 / h265 / av1
+    format: str = "mp4"
     width: Optional[int] = None
     height: Optional[int] = None
     fps: Optional[int] = None
     bitrate: Optional[int] = None
+    audio_codec: Optional[str] = None
+    audio_bitrate: Optional[int] = None
+    audio_channels: Optional[int] = None
+    quality_type: Optional[str] = None
+    stream_type: Optional[int] = None
     size: Optional[int] = None
     duration: Optional[float] = None
     master_url: str = ""
     backup_urls: List[str] = field(default_factory=list)
+    decode_key: Optional[str] = None
+    enc_limit: Optional[int] = None
+    proxy_url: Optional[str] = None
 
 
 @dataclass
@@ -52,6 +61,7 @@ class ImageItem:
 class XhsNote:
     note_id: str
     type: str               # video / normal
+    platform: str = "xhs"
     title: str = ""
     description: str = ""
     author: str = ""
@@ -66,6 +76,8 @@ class XhsNote:
     tags: List[str] = field(default_factory=list)
     publish_time: Optional[int] = None
     source_url: str = ""
+    status: str = "ok"
+    message: Optional[str] = None
     videos: List[VideoStream] = field(default_factory=list)
     images: List[ImageItem] = field(default_factory=list)
 
@@ -93,6 +105,35 @@ def _resolve_quality(width: Optional[int], height: Optional[int]) -> str:
         if short >= thr:
             return name
     return f"{short}P"
+
+
+def _pick(data: dict, *keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _as_list(value) -> list:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        for key in ("list", "items", "videos", "streams"):
+            if isinstance(value.get(key), list):
+                return value[key]
+        return [value]
+    return []
+
+
+def _duration_seconds(value) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number / 1000 if number > 1000 else number
 
 
 class XhsParser:
@@ -194,29 +235,38 @@ class XhsParser:
     def _fill_video(note: XhsNote, raw: dict) -> None:
         video = raw.get("video") or {}
         capa = video.get("capa") or {}
-        note.duration = capa.get("duration")
+        note.duration = _duration_seconds(capa.get("duration"))
 
         media = video.get("media") or {}
         stream = media.get("stream") or {}
 
         for codec in ("h264", "h265", "av1"):
-            for item in stream.get(codec, []) or []:
-                master_url = item.get("masterUrl") or ""
-                backup = list(item.get("backupUrls") or [])
+            for item in _as_list(stream.get(codec)):
+                master_url = _pick(item, "masterUrl", "master_url", "url") or ""
+                backup = list(_pick(item, "backupUrls", "backup_urls", "backupUrl", "backup_url") or [])
                 if not master_url and backup:
                     master_url = backup[0]
                 if not master_url:
                     continue
-                width, height = item.get("width"), item.get("height")
+                width, height = _pick(item, "width", "videoWidth"), _pick(item, "height", "videoHeight")
+                format_name = "mp4"
+                if ".m3u8" in master_url.split("?")[0].lower():
+                    format_name = "hls"
                 note.videos.append(VideoStream(
                     quality=_resolve_quality(width, height),
                     codec=codec,
+                    format=format_name,
                     width=width,
                     height=height,
-                    fps=item.get("fps"),
-                    bitrate=item.get("videoBitrate") or item.get("avgBitrate"),
-                    size=item.get("size"),
-                    duration=item.get("videoDuration") or capa.get("duration"),
+                    fps=_pick(item, "fps", "frameRate", "frame_rate"),
+                    bitrate=_pick(item, "videoBitrate", "video_bitrate", "avgBitrate", "avg_bitrate", "bitrate"),
+                    audio_codec=_pick(item, "audioCodec", "audio_codec", "audioFormat", "audio_format"),
+                    audio_bitrate=_pick(item, "audioBitrate", "audio_bitrate"),
+                    audio_channels=_pick(item, "audioChannels", "audio_channels"),
+                    quality_type=_pick(item, "qualityType", "quality_type", "quality"),
+                    stream_type=_pick(item, "streamType", "stream_type"),
+                    size=_pick(item, "size", "fileSize", "file_size"),
+                    duration=_duration_seconds(_pick(item, "videoDuration", "video_duration") or capa.get("duration")),
                     master_url=master_url,
                     backup_urls=backup,
                 ))
@@ -228,7 +278,8 @@ class XhsParser:
                 note.videos.append(VideoStream(
                     quality="原画",
                     codec="h264",
-                    duration=capa.get("duration"),
+                    format="mp4",
+                    duration=_duration_seconds(capa.get("duration")),
                     master_url=f"https://sns-video-bd.xhscdn.com/{origin_key}",
                 ))
 
@@ -236,7 +287,10 @@ class XhsParser:
         codec_pref = {"h264": 0, "h265": 1, "av1": 2}
         note.videos.sort(key=lambda v: (codec_pref.get(v.codec, 9),
                                         -(v.height or 0),
-                                        -(v.bitrate or 0)))
+                                        -(v.width or 0),
+                                        -(v.bitrate or 0),
+                                        -(v.audio_bitrate or 0),
+                                        -(v.size or 0)))
 
         # cover: 优先用 video 自带封面, 否则用 imageList[0]
         first_img = (raw.get("imageList") or [{}])[0]

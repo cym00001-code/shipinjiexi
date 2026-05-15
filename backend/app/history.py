@@ -55,11 +55,20 @@ def record(note: dict) -> int:
 def list_recent(limit: int = 50) -> List[dict]:
     with _conn() as c:
         rows = c.execute(
-            "SELECT id, note_id, type, title, author, cover, source_url, created_at "
+            "SELECT id, note_id, type, title, author, cover, source_url, payload, created_at "
             "FROM history ORDER BY created_at DESC LIMIT ?",
             (limit,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        items = []
+        for row in rows:
+            item = dict(row)
+            try:
+                item["platform"] = (json.loads(item.pop("payload")).get("platform") or "xhs")
+            except Exception:
+                item.pop("payload", None)
+                item["platform"] = "xhs"
+            items.append(item)
+        return items
 
 
 def get_full(item_id: int) -> Optional[dict]:

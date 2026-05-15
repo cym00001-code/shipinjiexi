@@ -1,6 +1,7 @@
-# 小红书视频解析平台 (XHS Parser)
+# 小红书/视频号解析平台
 
 > 粘贴小红书分享链接 → 自动解析 → 多清晰度原画下载（含图集打包）。
+> 视频号支持粘贴复制链接、详情 JSON、下载命令、媒体链接 + decodeKey → 自动归一化并解密下载。
 > 纯 Python + 单页前端，无需浏览器无需 JS 引擎，1.8GB 小机器轻松跑。
 
 ## 在线体验
@@ -11,8 +12,10 @@
 
 - 支持 `xiaohongshu.com/explore/...`、`xhslink.com/...` 短链、App 分享文本
 - **视频笔记**：完整暴露 `h264 / h265 / av1` × 所有码率分辨率，自由选清晰度
+- **规格增强**：展示格式、音频编码、音频码率、文件大小等更多流信息
 - **图文笔记**：原图直链 + 一键打包 ZIP；自动识别"实况图"动图，导出 MP4
 - 后端代理下载，自动加 Referer 解决 CDN 防盗链 + 自定义文件名
+- **视频号**：支持复制链接识别作品入口；若分享页或采集数据含 `objectDesc.media.url / urlToken / decodeKey`，则用 ISAAC64 解密前 128KB 后下载
 - SQLite 解析历史，回顾过往作品
 - 仿小红书风格 UI，移动端友好
 
@@ -21,6 +24,7 @@
 - **后端**：FastAPI + httpx + SQLite
 - **前端**：单页 HTML + Tailwind CDN + Vue 3 CDN
 - **解析原理**：抓取小红书网页中的 `window.__INITIAL_STATE__` JSON，从 `noteDetailMap[noteId].note.video.media.stream.{h264,h265,av1}` 提取多清晰度流
+- **视频号原理**：微信视频号直链和 `decodeKey` 通常来自微信 PC 端/本地采集环境；本站负责归一化字段并解密下载，不在服务器侧伪造微信登录环境
 
 ## 本地开发
 
@@ -57,10 +61,22 @@ python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 也可在前端「设置」面板里临时填入 Cookie，存在浏览器 localStorage。
 
+## 视频号用法
+
+视频号不像小红书公开页那样稳定暴露下载字段。第一版请粘贴以下任一内容：
+
+- 微信 PC 端/采集工具拿到的详情 JSON，包含 `objectDesc.media[].url`、`urlToken`、`decodeKey`
+- 视频号「复制链接」得到的分享链接，系统会抓取分享页并尽力提取内嵌媒体字段
+- 下载命令或文本，例如包含 `https://wxapp.tc.qq.com/...` 和 `decodeKey=123456789`
+- 已拼好鉴权参数的媒体链接；如果有 `decodeKey`，下载时会自动解密
+
+如果普通分享页没有下发 `urlToken / decodeKey`，页面会显示“链接已识别但缺少下载密钥”。这是平台机制限制，完整下载字段通常来自微信 PC 登录环境中的 `FinderGetCommentDetail`。
+
 ## API
 
 - `POST /api/parse` `{url, cookie?, save_history?}` — 解析作品
 - `GET  /api/download?url=...&filename=...` — 流式代理下载单文件
+- `GET  /api/wx-download?url=...&decode_key=...&filename=...` — 视频号加密视频代理解密下载
 - `POST /api/zip` `{urls, filename?}` — 图集打包 ZIP
 - `GET  /api/history` — 解析历史
 - `GET  /api/history/{id}` — 取出历史完整数据
